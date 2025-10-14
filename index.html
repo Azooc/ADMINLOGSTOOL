@@ -1,0 +1,449 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Admin Log Review</title>
+
+  <style>
+    :root {
+      --bg:#0f1720;
+      --panel:#0b1220;
+      --muted:#9aa4b2;
+      --accent:#7dd3fc;
+      --border:rgba(255,255,255,0.08);
+      --orange:#f59e0b;
+      --blue:#60a5fa;
+      --red:#ef4444;
+      --pink:#f472b6;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, Segoe UI, Roboto, "Helvetica Neue", Arial;
+      font-size: 1.06rem;
+    }
+
+    body {
+      background: linear-gradient(180deg, #050a15 0%, #0a1420 60%, var(--bg) 100%);
+      background-attachment: fixed;
+      color: #e6eef6;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px;
+    }
+
+    .wrap { width: min(1400px, 96%); }
+
+    header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 16px;
+    }
+    h1 { margin: 0; font-size: 1.35rem; letter-spacing:.02em; color:#dce7f3; }
+    .controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    input[type="file"]{ display:none; }
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 12px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      color: inherit;
+      font-size: 1.01rem;
+      transition: all .2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap:10px;
+      user-select: none;
+    }
+    .btn:hover { background: rgba(255,255,255,0.05); border-color: var(--accent); }
+    .btn .icon{font-size:1.05rem; line-height:1}
+    .staff-status { color: var(--muted); font-size:.95rem; }
+    
+    .filters {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 22px;
+      margin: 10px 0 18px;
+      flex-wrap: wrap;
+    }
+    .filters label {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      color:var(--muted);
+      cursor:pointer;
+      font-weight:600;
+      letter-spacing:.01em;
+    }
+    .filters input[type="checkbox"]{
+      transform: scale(1.25);
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .search {
+      display:flex;
+      gap:10px;
+      align-items:center;
+      background:rgba(255,255,255,0.05);
+      border:1px solid rgba(255,255,255,0.1);
+      padding:8px 10px;
+      border-radius:10px;
+      min-width:280px;
+    }
+    .search input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #e6eef6;
+      font-size: 1.01rem;
+      width: 260px;
+    }
+
+    .tabs { display:flex; gap:2px; margin-bottom:8px; }
+    .tab {
+      flex:1;
+      text-align:center;
+      background: rgba(255,255,255,0.04);
+      padding: 10px 0;
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 10px 10px 0 0;
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--muted);
+      transition: all .2s ease;
+      user-select:none;
+    }
+    .tab.active { background: var(--panel); border-color:#e6eef6; color:#e6eef6; }
+
+    .frame {
+      background: var(--panel);
+      border: 2px solid #e6eef6;
+      border-radius: 0 0 12px 12px;
+      padding: 14px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35) inset;
+    }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .frame-inner {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      min-height: 520px;
+      max-height: 680px;
+      overflow: auto;
+    }
+    .logs {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: .98rem;
+      line-height: 1.42;
+      white-space: pre-wrap;
+      padding: 12px 14px;
+    }
+    .log-line { padding:2px 6px; border-radius:6px; }
+    .hl-orange { background: color-mix(in srgb, var(--orange) 18%, transparent); outline:1px solid color-mix(in srgb, var(--orange) 45%, transparent); }
+    .hl-blue   { background: color-mix(in srgb, var(--blue) 18%, transparent);   outline:1px solid color-mix(in srgb, var(--blue) 45%, transparent); }
+    .hl-red    { background: color-mix(in srgb, var(--red) 18%, transparent);    outline:1px solid color-mix(in srgb, var(--red) 45%, transparent); }
+    .hl-pink   { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--pink) 75%, transparent);
+                 background: color-mix(in srgb, var(--pink) 14%, transparent); }
+
+    @media (max-width: 640px){
+      header{ grid-template-columns: 1fr; }
+      .controls{ justify-content: flex-start; }
+      .filters{ gap:14px; }
+      .frame-inner{ min-height:420px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Admin Log Review</h1>
+      <div class="controls">
+        <label class="btn" for="expInput" title="Upload Expansion log">
+          <span class="icon">📁</span> UPLOAD EXPANSION LOG
+        </label>
+        <input id="expInput" type="file" accept=".log,.txt" />
+        <label class="btn" for="zomInput" title="Upload ZomBerry log">
+          <span class="icon">📁</span> UPLOAD ZOMBERRY LOG
+        </label>
+        <input id="zomInput" type="file" accept=".log,.txt" />
+        <span id="staffStatus" class="staff-status"></span>
+      </div>
+    </header>
+
+    <div class="filters" aria-label="Options">
+      <label><input type="checkbox" id="chkSpawnInfractions"> SPAWN INFRACTIONS</label>
+      <label><input type="checkbox" id="chkNonStaff"> NON STAFF CHAR TOOLS</label>
+      <label><input type="checkbox" id="chkHideNonInfractions"> HIDE NON INFRACTIONS</label>
+      <div class="search">
+        <span style="opacity:.8">🔎</span>
+        <input id="searchInput" type="text" placeholder="Search logs…" />
+      </div>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab active" id="tabEXP">EXPANSION</div>
+      <div class="tab" id="tabZOM">ZOMBERRY</div>
+    </div>
+
+    <section class="frame">
+      <div id="contentEXP" class="tab-content active">
+        <div class="frame-inner">
+          <div id="logsEXP" class="logs"><em>Upload an Expansion log to view entries.</em></div>
+        </div>
+      </div>
+
+      <div id="contentZOM" class="tab-content">
+        <div class="frame-inner">
+          <div id="logsZOM" class="logs"><em>Upload a ZomBerry log to view entries.</em></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+
+    //WEAPON LISTS
+    
+    const colorGroups = {
+      orange: [ /*ORANGE SPAWN ITEMS*/
+        "Deagle","DRP_FKBrno","TF_OTs_12_Tiss","TF_OTs_14_Groza","Saiga","RS_BPRWinchester70_Polymer",
+        "Aug","AugShort","FAMAS","RS_AEK971","RS_AK12","RS_AK107","RS_BrenA1","RS_BrenA2","RS_BrenA1_Camo","RS_BrenA2_Camo",
+        "RS_Grot","RS_HoneyBadger","TF_AK103","TF_AK104","TF_AK105_Bullpup","TF_AN94","TF_AN94M","TF_MK47","TF_MK47_CQBR",
+        "TF_SCAR_L","TF_SCAR_L_Black","TF_SCAR_L_FDE","TF_SCAR_L_CQC","TF_SCAR_L_CQC_Black","TF_SCAR_L_CQC_FDE",
+        "TF_SCAR_20_Shd","TF_SCAR_20_FDE","TF_SCAR_20_Black","TF_M16A4","TF_M4A1","TF_M4A1_CQBR","FAL","RS_G3",
+        "TF_SCAR_H","TF_SCAR_H_Black","TF_SCAR_H_FDE","TF_SCAR_H_CQC","TF_SCAR_H_CQC_Black","TF_SCAR_H_CQC_FDE",
+        "TF_M14_STD","TF_M14_EBR","RS_CZ750","RS_M76","TF_SCAR_20","TF_M14_DMR","TF_SR25","TF_SVCh","TF_SVCh308",
+        "svd","SV98","Expansion_AWM","RS_M60","RS_L86A2","M79","ExpansionRPG7","ExpansionLAW","Zen_ArtillerySmokeGrenade",
+        "RS_RPK16","RS_RPK74M","RS_MG42","TF_PKM","TF_PKP","TF_AEK999","TF_M249","TF_M240","ClaymoreMine","LandMineTrap",
+        "Ammo_40mm_Explosive","TF_PhosporusGrenade","TF_ChemicalGrenade","TF_AVSVest","TF_IMTVVest","TF_6B43Vest",
+        "TF_LVMBAVVest","RS_6B13","GorkaHelmet","TF_Maska1Helmet"
+      ],
+      blue: [ /*LORE SPAWN ITEMS*/
+        "RS_Colt1911_Kosmos","RS_Mp133Shotgun_Kosmos","RS_WC_SKS_Kosmos","RS_CZ527_Kosmos","RS_Mosin9130_Kosmos",
+        "RS_WC_M16A2_Kosmos","6b5_vest","TF_6B23","ALV_6B25Vest","TF_6B47Helmet","TF_LSHZHelmet"
+      ],
+      red: [ /*RED SPAWN ITEMS*/
+        "RS_BPRMKII_Black","RS_BPRColt1911_Red","RS_WC_Magnum_Silver","RS_WC_Magnum_Engraved","AKS74U","vg7_scorpion_smg",
+        "RS_BPRIzh43","drp_Type99","RS_BPRWinchester70_Family","RS_Winchester70_Legacy","RS_BPRSKS_Black","RS_WC_B95_Special",
+        "AK101","AK74","AKM","M4A1","Expansion_M16","RS_OldAK","Expansion_M14","SVD_Wooden","M14","RS_SVD","TF_Anzio20",
+        "TF_MAR10","TF_M24","TF_SWORD_Mk18_Mjolnir","M249","RS_RPK74","Expansion_LobotomyDartGun","Msp_Water_Gun","TF_M79",
+        "Zen_ArtillerySmokeGrenadeChemDISABLED","Zen_ArtilleryBomb","Grenade_ChemGas","Plastic_Explosive","Ammo_40mm_ChemGas",
+        "ExpansionSatchel","TF_TeargasGrenade","ALV_JPCVest_Heavy",
+        "AKS74U_Black","AKS74U_Green","AKS74U_Clean","AKS74U_Yellow","AKS74U_Orange","AKS74U_Brown","AKS74U_White","AKS74U_Grey","AKS74U_Blue","AKS74U_Red","AKS74U_Pink",
+        "AK101_Black","AK101_Green","AK101_Clean","AK101_Yellow","AK101_Orange","AK101_Brown","AK101_White","AK101_Grey","AK101_Blue","AK101_Red","AK101_Pink",
+        "AK74_Black","AK74_Green","AK74_Clean","AK74_Yellow","AK74_Orange","AK74_Brown","AK74_White","AK74_Grey","AK74_Blue","AK74_Red","AK74_Pink",
+        "M4A1_Black","M4A1_Green","M4A1_Clean","M4A1_Yellow","M4A1_Orange","M4A1_Brown","M4A1_White","M4A1_Grey","M4A1_Blue","M4A1_Red","M4A1_Pink"
+      ]
+    };
+
+    const colorIndex = new Map();
+    Object.entries(colorGroups).forEach(([color, arr]) => {
+      arr.forEach(name => colorIndex.set(String(name).trim().toLowerCase(), color));
+    });
+
+    //STAFF LIST
+    const staffSet = new Set([
+      // Bigman
+      "roland","hofer",
+      // Admins
+      "kattica","banshee","havikar","magenshae","christina",
+      // GameMasters
+      "poster","bunny","cole","gio","maeyla","niveous","tilt","koru",
+      // Loremasters
+      "json","vinny","resiststance","stagsview","brad","sheepy","rex","chuck","pyjama","vixen"
+    ]);
+    document.getElementById("staffStatus").textContent =
+      `Staff list loaded: ${staffSet.size} names`;
+
+    let expansionRaw = []; 
+    let zomberryRaw  = [];
+    let activeTab = "EXP";
+    let searchTerm = "";
+    let spawnInfractionsOn = false;
+    let hideNonInfractions = false;
+    let nonStaffToolsOn = false;
+
+    const normItem = s => String(s).replace(/[()]/g,"").trim().toLowerCase();
+    const normName = s => String(s).normalize("NFKC").trim().toLowerCase();
+
+    function classifyItem(itemClass){
+      if (!itemClass) return null;
+      return colorIndex.get(normItem(itemClass)) || null;
+    }
+    function isStaff(name){ return !!name && staffSet.has(normName(name)); }
+    function passesSearch(raw){ return !searchTerm || raw.toLowerCase().includes(searchTerm.toLowerCase()); }
+    function shouldShowEntry(e){
+      if (hideNonInfractions && !isHighlighted(e)) return false;
+      return passesSearch(e.raw);
+    }
+
+
+    function escapeHtml(s){
+      return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    function isHighlighted(e){
+      let hl = false;
+      if (spawnInfractionsOn && (e.color === "orange" || e.color === "blue" || e.color === "red")) hl = true;
+      if (nonStaffToolsOn && e.nonStaff) hl = true;
+      return hl;
+    }
+
+    function renderList(targetId, list){
+      const target = document.getElementById(targetId);
+      if (!list.length){ target.innerHTML = '<em>No entries.</em>'; return; }
+
+      const out = [];
+      for (const e of list){
+        if (!shouldShowEntry(e)) continue;
+
+        const classes = [];
+        if (spawnInfractionsOn && e.color === "orange") classes.push("hl-orange");
+        if (spawnInfractionsOn && e.color === "blue")   classes.push("hl-blue");
+        if (spawnInfractionsOn && e.color === "red")    classes.push("hl-red");
+        if (nonStaffToolsOn && e.nonStaff) classes.push("hl-pink");
+
+        out.push(`<div class="log-line ${classes.join(" ")}">${escapeHtml(e.raw)}</div>`);
+      }
+      target.innerHTML = out.length ? out.join("\n") : '<em>No entries match your filters.</em>';
+    }
+
+    function renderActive(){
+      if (activeTab === "EXP") renderList('logsEXP', expansionRaw);
+      else                     renderList('logsZOM', zomberryRaw);
+    }
+
+    //Expansion
+    const EXP_GENERIC_RE = /^(\d{1,2}:\d{1,2}:\d{1,2}) \|\s*"([^"]+)"\s+\(steamid=(\d+)\)\s*(.*)$/;
+    const EXP_ITEM_RE = /Spawned Item:\s*\(([^)]+)\)/i;
+
+    function parseExpansion(text){
+      const out = [];
+      const lines = text.replace(/\r\n?/g,"\n").split("\n");
+      for (const raw of lines){
+        if (!raw.trim()) continue;
+
+        const info = raw.match(EXP_GENERIC_RE);
+        const actor = info ? info[2].trim() : null;
+        const actorId = info ? info[3].trim() : null;
+        const time = info ? info[1] : null;
+        const remainder = info ? (info[4]||"").trim() : null;
+
+        const mSpawn = raw.match(EXP_ITEM_RE);
+        const itemClass = mSpawn ? mSpawn[1].trim() : null;
+        const color = classifyItem(itemClass);
+
+        out.push({
+          raw,
+          type: mSpawn ? "spawn" : "other",
+          itemClass, color,
+          actor, actorId, time, action: remainder,
+          nonStaff: actor ? !isStaff(actor) : false
+        });
+      }
+      return out;
+    }
+
+    //ZOMBERRY
+    const ZOM_GENERIC_RE =
+      /^\d{2}\.\d{2}\.\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+\[(ZomBerry(?:Admin|Dbg))\]:\s*([^()]+?)\s*\(([^)]+)\)\s*(.*)$/i;
+    const ZOM_SPAWN_RE = /spawned\s+([A-Za-z0-9_]+)\s+at\b/i;
+
+    function parseZomBerry(text) {
+      const out = [];
+      const lines = text.replace(/\r\n?/g, "\n").split("\n");
+      for (const raw0 of lines) {
+        if (!raw0.trim()) continue;
+        const raw = raw0.replace(/\s+\(/, " ("); // normalize spacing
+        if (/ZomBerryDbg\]:\s*Auth respond to admin/i.test(raw)) continue;   
+        const info = raw.match(
+          /^\d{2}\.\d{2}\.\d{4}\s+\d{1,2}:\d{2}:\d{2}\s+\[(ZomBerry(?:Admin|Dbg))\]:\s*([^()]+?)\s*\(([^)]+)\)\s*(.*)$/i
+        );
+    
+        const actor = info ? info[2].trim() : null;
+        const actorId = info ? info[3].trim() : null;
+        const channel = info ? info[1] : null;
+        const remainder = info ? (info[4] || "").trim() : null;
+    
+        const mSpawn = raw.match(/spawned\s+([A-Za-z0-9_]+)\s+at\b/i);
+        const itemClass = mSpawn ? mSpawn[1].trim() : null;
+        const color = classifyItem(itemClass);
+    
+        out.push({
+          raw,
+          type: mSpawn ? "spawn" : "other",
+          itemClass,
+          color,
+          actor,
+          actorId,
+          channel,
+          action: remainder,
+          nonStaff: actor ? !isStaff(actor) : false,
+        });
+      }
+      return out;
+    }
+
+    //UPLOADS
+    document.getElementById('expInput').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      expansionRaw = parseExpansion(text);
+      setActiveTab("EXP");
+      renderActive();
+    });
+
+    document.getElementById('zomInput').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const text = await file.text();
+      zomberryRaw = parseZomBerry(text);
+      setActiveTab("ZOM");
+      renderActive();
+    });
+
+    document.querySelectorAll('.tab').forEach(tab=>{
+      tab.addEventListener('click', ()=>{
+        const id = tab.id === 'tabEXP' ? 'EXP' : 'ZOM';
+        setActiveTab(id);
+        renderActive();
+      });
+    });
+    function setActiveTab(id){
+      activeTab = id;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab'+id).classList.add('active');
+      document.getElementById('content'+id).classList.add('active');
+    }
+
+    document.getElementById('chkHideNonInfractions').addEventListener('change', e=>{
+      hideNonInfractions = e.target.checked;
+      renderActive();
+    });
+    document.getElementById('chkSpawnInfractions').addEventListener('change', e=>{
+      spawnInfractionsOn = e.target.checked;
+      renderActive();
+    });
+    document.getElementById('chkNonStaff').addEventListener('change', e => {
+      nonStaffToolsOn = e.target.checked;
+      renderActive();
+    });
+    document.getElementById('searchInput').addEventListener('input', e=>{
+      searchTerm = e.target.value || ""; renderActive();
+    });
+
+    renderActive();
+  </script>
+</body>
+</html>
