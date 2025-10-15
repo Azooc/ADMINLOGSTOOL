@@ -170,11 +170,11 @@
         <label class="btn" for="expInput" title="Upload Expansion log">
           <span class="icon">📁</span> UPLOAD EXPANSION LOG
         </label>
-        <input id="expInput" type="file" accept=".log,.txt" />
+        <input id="expInput" type="file" accept=".log,.txt" multiple />
         <label class="btn" for="zomInput" title="Upload ZomBerry log">
           <span class="icon">📁</span> UPLOAD ZOMBERRY LOG
         </label>
-        <input id="zomInput" type="file" accept=".log,.txt" />
+        <input id="zomInput" type="file" accept=".log,.txt" multiple />
         <span id="staffStatus" class="staff-status"></span>
       </div>
     </header>
@@ -274,6 +274,20 @@
 
     const normItem = s => String(s).replace(/[()]/g,"").trim().toLowerCase();
     const normName = s => String(s).normalize("NFKC").trim().toLowerCase();
+
+    function normalizeNewlines(t){ return t.replace(/\r\n?/g, "\n"); }
+
+    async function readAndMergeFiles(fileList) {
+      const files = Array.from(fileList || []);
+      if (!files.length) return "";
+    
+      files.sort((a, b) =>
+        a.name.localeCompare(b.name) || (a.lastModified - b.lastModified)
+      );
+    
+      const texts = await Promise.all(files.map(f => f.text()));
+      return texts.map(normalizeNewlines).join("\n");
+    }
 
     function classifyItem(itemClass){
       if (!itemClass) return null;
@@ -393,24 +407,42 @@
       return out;
     }
 
-    //UPLOADS
     document.getElementById('expInput').addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      expansionRaw = parseExpansion(text);
-      setActiveTab("EXP");
-      renderActive();
+      try {
+        const merged = await readAndMergeFiles(e.target.files);
+        if (!merged) return;
+    
+        expansionRaw = parseExpansion(merged);
+        setActiveTab("EXP");
+        renderActive();
+    
+        const count = e.target.files?.length || 0;
+        document.getElementById("staffStatus").textContent =
+          `Loaded ${count} Expansion file${count===1?"":"s"} • ${expansionRaw.length} entries • Staff list: ${staffSet.size} names`;
+      } catch (err) {
+        console.error(err);
+        alert("There was a problem reading one or more Expansion logs.");
+      }
+    });
+    
+    document.getElementById('zomInput').addEventListener('change', async (e) => {
+      try {
+        const merged = await readAndMergeFiles(e.target.files);
+        if (!merged) return;
+    
+        zomberryRaw = parseZomBerry(merged);
+        setActiveTab("ZOM");
+        renderActive();
+    
+        const count = e.target.files?.length || 0;
+        document.getElementById("staffStatus").textContent =
+          `Loaded ${count} ZomBerry file${count===1?"":"s"} • ${zomberryRaw.length} entries • Staff list: ${staffSet.size} names`;
+      } catch (err) {
+        console.error(err);
+        alert("There was a problem reading one or more ZomBerry logs.");
+      }
     });
 
-    document.getElementById('zomInput').addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      const text = await file.text();
-      zomberryRaw = parseZomBerry(text);
-      setActiveTab("ZOM");
-      renderActive();
-    });
 
     document.querySelectorAll('.tab').forEach(tab=>{
       tab.addEventListener('click', ()=>{
